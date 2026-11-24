@@ -73,6 +73,8 @@
   .campo-mes { position:relative; display:inline-block; }
   .campo-mes input[type=month] { width:300px; padding-right:96px; text-align:left; white-space:nowrap; -webkit-appearance:none; appearance:none; }
   input[type=month]::-webkit-calendar-picker-indicator { display:none; }
+  input[type=month]::-webkit-datetime-edit-fields-wrapper { display:flex; justify-content:flex-start; width:100%; }
+  input[type=month]::-webkit-datetime-edit { padding:0; }
   .setas-mes { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:2px; }
   .setas-mes button { border:none; background:transparent; padding:0 4px; font-size:18px; line-height:1; color:var(--fg); cursor:pointer; }
   .setas-mes button.icone-cal { padding:2px 4px; display:flex; align-items:center; }
@@ -110,6 +112,8 @@
     .titulo-caixa { padding:0 8px; }
     .abas { display:none; }
     .seletor-aba { display:block; }
+    #v-mes-x-mes .rot { width:52px; flex:0 0 52px; }
+    #v-mes-x-mes .campo-mes input[type=month] { width:260px; padding-right:84px; }
   }
 </style>
 </head>
