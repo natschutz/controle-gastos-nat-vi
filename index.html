@@ -56,8 +56,16 @@
   .grade { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; }
   @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
   .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); }
-  .titulo-caixa { margin:0 0 8px; font-size:15px; font-weight:600; }
-  .titulo-param { margin:16px 0 8px; font-size:15px; font-weight:600; }
+  .titulo-caixa { margin:0 0 8px; padding:0 12px; font-size:15px; font-weight:600; }
+  .titulo-param { margin:32px 0 8px; font-size:15px; font-weight:600; }
+  .campo-mes { position:relative; display:inline-block; }
+  .campo-mes input[type=month] { padding-right:72px; }
+  .setas-mes { position:absolute; right:30px; top:50%; transform:translateY(-50%); display:flex; gap:2px; }
+  .setas-mes button { border:none; background:transparent; padding:0 4px; font-size:18px; line-height:1; color:var(--fg); cursor:pointer; }
+  .grupo-mes { display:flex; align-items:center; gap:8px; }
+  .rot { font-size:14px; color:var(--muted); }
+  .dividas-tabelas { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+  .dividas-tabelas > .wrap { flex:0 1 auto; }
 
   /* Dívidas */
   .params { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
@@ -74,12 +82,14 @@
   td.acoes { text-align:right; white-space:nowrap; }
   .rodape { margin-top:12px; font-size:12px; color:var(--muted); }
   .marca { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .marca #meta { margin:0 0 0 24px; }
   @media (max-width: 700px) {
     nav.topo { padding:10px 12px; }
     main { padding:14px 12px 24px; }
     th, td { padding:7px 8px; font-size:13px; }
     .abas button { padding:6px 10px; font-size:13px; }
     #banner .valor { font-size:20px; }
+    .titulo-caixa { padding:0 8px; }
   }
 </style>
 </head>
@@ -89,6 +99,7 @@
   <div class="marca">
     <h1>Gastos Nat e Vi</h1>
     <button id="btnAtualizar" style="display:none">Atualizar (Nat)</button>
+    <span id="meta" class="meta">Carregando…</span>
   </div>
   <div class="abas" id="abas">
     <button data-aba="cartoes">Cartões</button>
@@ -103,7 +114,6 @@
     <label>Escolha o arquivo <strong>Controle_Mensal.xlsx</strong> (modo local): <input type="file" id="arquivo" accept=".xlsx"></label>
   </div>
   <div id="erro"></div>
-  <div id="meta" class="meta">Carregando…</div>
 
   <!-- CARTÕES -->
   <section class="visao" id="v-cartoes">
@@ -113,7 +123,13 @@
   <!-- GASTOS -->
   <section class="visao" id="v-gastos">
     <div class="gastos-topo">
-      <input type="month" id="mes" aria-label="Mês">
+      <div class="campo-mes">
+        <input type="month" id="mes" aria-label="Mês">
+        <span class="setas-mes">
+          <button type="button" data-passo="-1" data-alvo="mes" aria-label="Mês anterior">‹</button>
+          <button type="button" data-passo="1" data-alvo="mes" aria-label="Próximo mês">›</button>
+        </span>
+      </div>
     </div>
     <div id="banner" style="display:none;">
       <div class="rotulo" id="bRotulo"></div>
@@ -129,15 +145,36 @@
   <!-- MÊS X MÊS -->
   <section class="visao" id="v-mes-x-mes">
     <div class="gastos-topo">
-      <label>Início <input type="month" id="mxmInicio"></label>
-      <label>Fim <input type="month" id="mxmFim"></label>
+      <div class="grupo-mes">
+        <span class="rot">Início</span>
+        <div class="campo-mes">
+          <input type="month" id="mxmInicio">
+          <span class="setas-mes">
+            <button type="button" data-passo="-1" data-alvo="mxmInicio" aria-label="Mês anterior">‹</button>
+            <button type="button" data-passo="1" data-alvo="mxmInicio" aria-label="Próximo mês">›</button>
+          </span>
+        </div>
+      </div>
+      <div class="grupo-mes">
+        <span class="rot">Fim</span>
+        <div class="campo-mes">
+          <input type="month" id="mxmFim">
+          <span class="setas-mes">
+            <button type="button" data-passo="-1" data-alvo="mxmFim" aria-label="Mês anterior">‹</button>
+            <button type="button" data-passo="1" data-alvo="mxmFim" aria-label="Próximo mês">›</button>
+          </span>
+        </div>
+      </div>
     </div>
     <div class="wrap"><table id="t-mxm"></table></div>
   </section>
 
   <!-- DÍVIDAS -->
   <section class="visao" id="v-dividas">
-    <div class="wrap"><table id="t-dividas"></table></div>
+    <div class="dividas-tabelas">
+      <div class="wrap"><table id="t-dividas"></table></div>
+      <div class="wrap"><table id="t-dividas-rend"></table></div>
+    </div>
     <h2 class="titulo-param">Parâmetros Rendimento Estimado</h2>
     <div class="params">
       <div class="param"><div class="l">Rendimento por dia útil a cada 1 real</div><div class="v" id="p-taxa">-</div></div>
@@ -511,22 +548,18 @@ function renderDividas() {
   const hoje = serialHoje();
   $("p-taxa").textContent = div.taxa.toLocaleString("pt-BR", { maximumSignificantDigits: 12 });
   $("p-data").textContent = dataDeSerial(hoje);
-  const colunas = ["Descrição", "Data", "Valor", "Saldo", "Dias úteis", "Rendimento Estimado"];
-  let html = `<thead><tr>${colunas.map(c => `<th>${c}</th>`).join("")}${escrita ? "<th></th>" : ""}</tr></thead><tbody>`;
+  const cls = (v) => (v < 0 ? ' class="neg"' : "");
+  const cabA = `<thead><tr><th>Descrição</th><th>Data</th><th>Valor</th><th>Saldo</th></tr></thead><tbody>`;
+  const cabB = `<thead><tr><th>Dias úteis</th><th>Rendimento Estimado</th>${escrita ? "<th></th>" : ""}</tr></thead><tbody>`;
+  let a = "", b = "";
   for (const l of div.modelo.linhas) {
-    const cls = (v) => (v < 0 ? ' class="neg"' : "");
-    html += `<tr>
-      <td>${l.descricao}</td>
-      <td>${l.data === null ? "" : dataDeSerial(l.data)}</td>
-      <td${cls(l.valor)}>${BRL.format(l.valor)}</td>
-      <td${cls(l.saldo)}>${BRL.format(l.saldo)}</td>
-      <td>${l.dias === null ? "" : l.dias}</td>
-      <td>${l.estimado === null ? "" : BRL.format(l.estimado)}</td>
-      ${escrita ? `<td class="acoes"><button data-editar="${l.row}">Editar</button> <button data-excluir="${l.row}">Excluir</button></td>` : ""}
-    </tr>`;
+    a += `<tr><td>${l.descricao}</td><td>${l.data === null ? "" : dataDeSerial(l.data)}</td><td${cls(l.valor)}>${BRL.format(l.valor)}</td><td${cls(l.saldo)}>${BRL.format(l.saldo)}</td></tr>`;
+    b += `<tr><td>${l.dias === null ? "" : l.dias}</td><td>${l.estimado === null ? "" : BRL.format(l.estimado)}</td>${escrita ? `<td class="acoes"><button data-editar="${l.row}">Editar</button> <button data-excluir="${l.row}">Excluir</button></td>` : ""}</tr>`;
   }
-  html += `<tr class="total"><td colspan="3">Total</td><td>${BRL.format(div.modelo.saldoFinal)}</td><td></td><td>${BRL.format(div.modelo.estimadoTotal)}</td>${escrita ? "<td></td>" : ""}</tr></tbody>`;
-  $("t-dividas").innerHTML = html;
+  a += `<tr class="total"><td colspan="3">Total</td><td>${BRL.format(div.modelo.saldoFinal)}</td></tr>`;
+  b += `<tr class="total"><td></td><td>${BRL.format(div.modelo.estimadoTotal)}</td>${escrita ? "<td></td>" : ""}</tr>`;
+  $("t-dividas").innerHTML = cabA + a + "</tbody>";
+  $("t-dividas-rend").innerHTML = cabB + b + "</tbody>";
   $("formDiv").style.display = escrita ? "grid" : "none";
   $("r-dividas").textContent = escrita
     ? "Cada alteração é gravada direto na aba Dívidas Vi do arquivo no OneDrive. Rendimento Estimado = dias úteis até a próxima movimentação (ou hoje) × taxa × saldo."
@@ -809,6 +842,16 @@ document.querySelectorAll("#abas button").forEach(b => b.onclick = () => irPara(
 $("mes").addEventListener("change", () => { estado.mesGastos = $("mes").value; renderGastos(); });
 $("mxmInicio").addEventListener("change", () => renderMesXMes());
 $("mxmFim").addEventListener("change", () => renderMesXMes());
+
+/* Setinhas ‹ e › dos campos de mês: avançam ou voltam um mês */
+document.querySelectorAll("[data-passo]").forEach(b => b.addEventListener("click", () => {
+  const campo = $(b.dataset.alvo);
+  const hoje = new Date();
+  const [y, m] = (campo.value || ymKey(hoje.getFullYear(), hoje.getMonth() + 1)).split("-").map(Number);
+  const d = new Date(y, m - 1 + Number(b.dataset.passo), 1);
+  campo.value = ymKey(d.getFullYear(), d.getMonth() + 1);
+  campo.dispatchEvent(new Event("change"));
+}));
 
 /* ---------- Início ---------- */
 async function iniciar() {
