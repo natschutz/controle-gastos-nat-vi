@@ -14,9 +14,9 @@
   body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
   /* Cabeçalho com navegação */
-  nav.topo { position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 24px; display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+  nav.topo { position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 24px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
   nav.topo h1 { font-size:18px; margin:0; font-weight:600; }
-  .abas { display:flex; flex-wrap:wrap; gap:6px; }
+  .abas { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
   .abas button { font:inherit; padding:7px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
   .abas button.ativa { background:var(--head); color:var(--head-fg); border-color:var(--head); }
 
@@ -57,8 +57,14 @@
   #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; width:260px; max-width:100%; }
   #banner .rotulo { font-size:16px; color:var(--muted); }
   #banner .valor { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; }
-  .grade { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; }
-  @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
+  .grade { display:grid; grid-template-columns: repeat(3, max-content); gap:12px; align-items:start; }
+  @media (max-width: 900px) {
+    .grade { grid-template-columns: 1fr; }
+    .grade .caixa { display:block; }
+    #g-nat table, #g-vi table { width:100%; table-layout:fixed; }
+    #g-nat th:first-child, #g-nat td:first-child, #g-vi th:first-child, #g-vi td:first-child { width:46%; }
+    #g-nat td, #g-vi td { white-space:normal; }
+  }
   .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); display:inline-block; max-width:100%; vertical-align:top; }
   .titulo-caixa { margin:0 0 8px; padding:0 12px; font-size:15px; font-weight:600; }
   .titulo-param { margin:32px 0 8px; font-size:15px; font-weight:600; }
@@ -69,7 +75,8 @@
   .setas-mes button { border:none; background:transparent; padding:0 4px; font-size:18px; line-height:1; color:var(--fg); cursor:pointer; }
   .setas-mes button.icone-cal { padding:2px 4px; display:flex; align-items:center; }
   .grupo-mes { display:flex; align-items:center; gap:8px; }
-  .rot { font-size:14px; color:var(--muted); }
+  .rot { font-size:14px; color:var(--muted); width:56px; flex:0 0 56px; }
+  .seletor-aba { display:none; font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); margin-left:auto; }
   .dividas-tabelas { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
   .dividas-tabelas > .wrap { flex:0 1 auto; }
 
@@ -88,7 +95,7 @@
   td.acoes { text-align:right; white-space:nowrap; }
   .rodape { margin-top:12px; font-size:12px; color:var(--muted); }
   .marca { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .marca #meta { margin:0 0 0 24px; }
+  .marca #meta { margin:0; }
   @media (max-width: 700px) {
     nav.topo { padding:10px 12px; }
     main { padding:14px 12px 24px; }
@@ -96,6 +103,8 @@
     .abas button { padding:6px 10px; font-size:13px; }
     #banner .valor { font-size:20px; }
     .titulo-caixa { padding:0 8px; }
+    .abas { display:none; }
+    .seletor-aba { display:block; }
   }
 </style>
 </head>
@@ -113,6 +122,12 @@
     <button data-aba="mes-x-mes">Mês x Mês</button>
     <button data-aba="dividas">Dívidas</button>
   </div>
+  <select id="selAba" class="seletor-aba" aria-label="Escolha a aba">
+    <option value="cartoes">Cartões</option>
+    <option value="gastos">Gastos</option>
+    <option value="mes-x-mes">Mês x Mês</option>
+    <option value="dividas">Dívidas</option>
+  </select>
 </nav>
 
 <main>
@@ -848,6 +863,7 @@ function carregarLocal(wb) {
 /* ---------- Navegação ---------- */
 function atualizarVisao() {
   const aba = estado.aba;
+  $("selAba").value = aba;
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativa", b.dataset.aba === aba));
   document.querySelectorAll("section.visao").forEach(s => s.classList.toggle("ativa", s.id === `v-${aba}`));
   if (!estado.cards) return;   // ainda sem arquivo
@@ -864,6 +880,7 @@ function irPara(aba) {
 }
 
 document.querySelectorAll("#abas button").forEach(b => b.onclick = () => irPara(b.dataset.aba));
+$("selAba").addEventListener("change", (e) => irPara(e.target.value));
 $("mes").addEventListener("change", () => { estado.mesGastos = $("mes").value; renderGastos(); });
 $("mxmInicio").addEventListener("change", () => renderMesXMes());
 $("mxmFim").addEventListener("change", () => renderMesXMes());
