@@ -556,11 +556,15 @@ async function obterToken() {
       cache: { cacheLocation: "localStorage" },
     });
     await estado.msal.initialize();
+    // Volta do login da Microsoft (fluxo por redirecionamento, sem pop-up)
+    const retorno = await estado.msal.handleRedirectPromise();
+    if (retorno && retorno.accessToken) return retorno.accessToken;
   }
   try {
     return (await estado.msal.acquireTokenSilent({ scopes: CONFIG.SCOPES, account: estado.msal.getAllAccounts()[0] })).accessToken;
   } catch (e) {
-    return (await estado.msal.loginPopup({ scopes: CONFIG.SCOPES })).accessToken;
+    await estado.msal.loginRedirect({ scopes: CONFIG.SCOPES });
+    return null; // a página é redirecionada para o login
   }
 }
 
