@@ -86,6 +86,7 @@
   </div>
   <div id="erro"></div>
   <div id="meta" class="meta">Carregando…</div>
+  <button id="btnAtualizar" style="display:none">Atualizar (Nat)</button>
 
   <!-- CARTÕES -->
   <section class="visao" id="v-cartoes">
@@ -154,6 +155,8 @@ const CONFIG = {
   ABA_DIVIDAS: "Dívidas Vi",
   MES_INICIAL: "2026-12",                    // ponto de partida da aba Gastos (como a B3)
   SCOPES: ["Files.ReadWrite"],
+  GH_REPO: "natschutz/controle-gastos-nat-vi",   // repositório onde fica a cópia cifrada
+  SNAPSHOT_PATH: "data.json",                    // nome do arquivo cifrado no repositório
 };
 
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -545,7 +548,7 @@ $("formDiv").addEventListener("submit", async (ev) => {
 });
 
 /* ---------- Microsoft Graph (OneDrive) ---------- */
-async function obterToken() {
+async function garantirMsal() {
   if (!estado.msal) {
     estado.msal = new msal.PublicClientApplication({
       auth: {
@@ -557,15 +560,22 @@ async function obterToken() {
     });
     await estado.msal.initialize();
     // Volta do login da Microsoft (fluxo por redirecionamento, sem pop-up)
-    const retorno = await estado.msal.handleRedirectPromise();
-    if (retorno && retorno.accessToken) return retorno.accessToken;
+    estado.retorno = await estado.msal.handleRedirectPromise();
   }
-  try {
-    return (await estado.msal.acquireTokenSilent({ scopes: CONFIG.SCOPES, account: estado.msal.getAllAccounts()[0] })).accessToken;
-  } catch (e) {
-    await estado.msal.loginRedirect({ scopes: CONFIG.SCOPES });
-    return null; // a página é redirecionada para o login
+  return estado.msal;
+}
+
+async function obterToken(interativo) {
+  const m = await garantirMsal();
+  const r = estado.retorno;
+  estado.retorno = null;
+  if (r && r.accessToken) return r.accessToken;
+  const conta = m.getAllAccounts()[0];
+  if (conta) {
+    try { return (await m.acquireTokenSilent({ scopes: CONFIG.SCOPES, account: conta })).accessToken; } catch (e) { /* segue para o login */ }
   }
+  if (interativo) await m.loginRedirect({ scopes: CONFIG.SCOPES }); // a página vai para o login da Microsoft
+  return null;
 }
 
 async function gfetch(metodo, url, corpo) {
@@ -579,7 +589,7 @@ async function gfetch(metodo, url, corpo) {
 }
 
 function baseWorkbook() {
-  return `https://graph.microsoft.com/v1.0/me/drive/items/${estado.itemId}/workbook/worksheets('${encodeURIComponent(CONFIG.ABA_DIVIDAS)}')`;
+  return `${estado.urlItem}/workbook/worksheets('${encodeURIComponent(CONFIG.ABA_DIVIDAS)}')`;
 }
 
 async function recarregarDividasOneDrive() {
@@ -632,18 +642,86 @@ function processar(wb) {
   $("mes").value = estado.mesGastos;
 }
 
-async function carregarOneDrive() {
-  estado.token = await obterToken();
-  if (!estado.token) return; // página foi para o login da Microsoft
+/* Nat: lê o OneDrive, atualiza a tela e publica a cópia cifrada para o Vi */
+async function sincronizarOneDrive() {
+  $("meta").textContent = "Atualizando do OneDrive…";
+  estado.token = await obterToken(true);
+  if (!estado.token) return; // a página está indo para o login da Microsoft
   const item = await gfetch("GET", `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURI(CONFIG.FILE_PATH)}`);
-  estado.itemId = item.id;
-  const resp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${estado.itemId}/content`, {
+  estado.urlItem = `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}`;
+  const resp = await fetch(`${estado.urlItem}/content`, {
     headers: { Authorization: `Bearer ${estado.token}` },
   });
   if (!resp.ok) throw new Error(`Não consegui baixar o arquivo do OneDrive (${resp.status}).`);
-  processar(XLSX.read(await resp.arrayBuffer(), { type: "array" }));
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  processar(XLSX.read(bytes, { type: "array" }));
   await recarregarDividasOneDrive();
   estado.escrita = true;
+  atualizarVisao();
+  $("meta").textContent = "Conectado ao OneDrive.";
+  try {
+    $("meta").textContent = "Conectado ao OneDrive. " + (await publicarSnapshot(bytes));
+  } catch (e) {
+    $("erro").textContent = "Dados atualizados, mas não consegui publicar a versão do Vi: " + (e.message || e);
+  }
+}
+
+/* Vi: lê a cópia cifrada publicada e pede a senha */
+async function carregarSnapshot() {
+  const resp = await fetch(`./${CONFIG.SNAPSHOT_PATH}?t=${Date.now()}`, { cache: "no-store" });
+  if (!resp.ok) throw new Error("Ainda não há dados publicados. Peça para a Nat atualizar.");
+  const obj = await resp.json();
+  const senha = window.prompt("Senha de acesso:");
+  if (!senha) throw new Error("Digite a senha para ver os dados.");
+  let bytes;
+  try { bytes = await decifrar(obj, senha); } catch (e) { throw new Error("Senha incorreta."); }
+  carregarLocal(XLSX.read(bytes, { type: "array" }));
+  estado.escrita = false;
+  atualizarVisao();
+  const quando = obj.publicadoEm ? new Date(obj.publicadoEm).toLocaleString("pt-BR") : "";
+  $("meta").textContent = `Dados atualizados em ${quando} (somente leitura).`;
+}
+
+/* Cifra o arquivo e envia para o repositório do GitHub */
+async function publicarSnapshot(bytes) {
+  const senha = window.prompt("Senha para a versão do Vi (a mesma que ele vai digitar):");
+  if (!senha) return "(versão do Vi não publicada: sem senha)";
+  const token = localStorage.getItem("ghToken") || window.prompt("Cole o token do GitHub (só na primeira vez):");
+  if (!token) return "(versão do Vi não publicada: sem token)";
+  localStorage.setItem("ghToken", token);
+  const url = `https://api.github.com/repos/${CONFIG.GH_REPO}/contents/${CONFIG.SNAPSHOT_PATH}`;
+  const cab = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
+  let sha;
+  const atual = await fetch(url, { headers: cab });
+  if (atual.ok) sha = (await atual.json()).sha;
+  const obj = { publicadoEm: new Date().toISOString(), ...(await cifrar(bytes, senha)) };
+  const put = await fetch(url, {
+    method: "PUT",
+    headers: { ...cab, "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "Atualiza dados", content: btoa(JSON.stringify(obj)), sha }),
+  });
+  if (!put.ok) throw new Error(`GitHub recusou a publicação (${put.status}).`);
+  return "Versão do Vi atualizada.";
+}
+
+/* Cifragem com senha (AES-GCM, chave derivada com PBKDF2) */
+function bytesParaB64(u8) { let s = ""; for (const x of u8) s += String.fromCharCode(x); return btoa(s); }
+function b64ParaBytes(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+async function derivarChave(senha, salt) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(senha), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function cifrar(bytes, senha) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const chave = await derivarChave(senha, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, chave, bytes));
+  return { v: 1, salt: bytesParaB64(salt), iv: bytesParaB64(iv), data: bytesParaB64(ct) };
+}
+async function decifrar(obj, senha) {
+  const chave = await derivarChave(senha, b64ParaBytes(obj.salt));
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ParaBytes(obj.iv) }, chave, b64ParaBytes(obj.data));
+  return new Uint8Array(pt);
 }
 
 function carregarLocal(wb) {
@@ -684,10 +762,15 @@ async function iniciar() {
   $("mes").value = estado.mesGastos;
   try {
     if (CONFIG.CLIENT_ID) {
-      $("meta").textContent = "Carregando do OneDrive…";
-      await carregarOneDrive();
-      $("meta").textContent = "Conectado ao OneDrive.";
-      atualizarVisao();
+      const m = await garantirMsal();
+      $("btnAtualizar").style.display = "inline-block";
+      $("btnAtualizar").onclick = () => sincronizarOneDrive().catch(e => { $("erro").textContent = e.message || String(e); });
+      const temSessao = (estado.retorno && estado.retorno.accessToken) || m.getAllAccounts().length > 0;
+      if (temSessao) {
+        await sincronizarOneDrive();
+      } else {
+        await carregarSnapshot();
+      }
     } else {
       $("fallback").style.display = "block";
       $("meta").textContent = "Aguardando arquivo";
