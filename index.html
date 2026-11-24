@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gastos Nat e Vi</title>
+<style>
+  :root { --bg:#fafafa; --fg:#111; --muted:#6b6b6b; --line:#e4e4e4; --head:#111; --head-fg:#fff; --zebra:#f3f3f3; --card:#fff; --neg:#b00020; --pos:#0a7a3a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f0f0f; --fg:#f2f2f2; --muted:#9a9a9a; --line:#2a2a2a; --head:#f2f2f2; --head-fg:#0f0f0f; --zebra:#171717; --card:#151515; --neg:#ff6b6b; --pos:#5fd38d; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+  /* Cabeçalho com navegação */
+  nav.topo { position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 24px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
+  nav.topo h1 { font-size:18px; margin:0; font-weight:600; }
+  .abas { display:flex; flex-wrap:wrap; gap:6px; }
+  .abas button { font:inherit; padding:7px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  .abas button.ativa { background:var(--head); color:var(--head-fg); border-color:var(--head); }
+
+  main { padding:20px 24px 32px; }
+  section.visao { display:none; }
+  section.visao.ativa { display:block; }
+  .meta { font-size:13px; color:var(--muted); margin:0 0 12px; }
+  #erro { color:var(--neg); white-space:pre-wrap; margin:0 0 12px; }
+  #fallback { display:none; margin:0 0 16px; padding:14px; border:1px dashed var(--line); border-radius:10px; }
+
+  .wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; background:var(--card); }
+  table { border-collapse:collapse; width:100%; font-size:14px; font-variant-numeric:tabular-nums; }
+  th, td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { position:sticky; top:0; background:var(--head); color:var(--head-fg); font-weight:600; z-index:1; }
+  th:first-child, td:first-child { text-align:left; }
+  tbody tr:nth-child(even) td { background:var(--zebra); }
+  tr.ano td { background:transparent !important; font-weight:600; color:var(--muted); text-transform:uppercase; font-size:12px; letter-spacing:.04em; padding-top:18px; }
+  tr.total td { font-weight:600; border-top:2px solid var(--fg); border-bottom:none; }
+  td.zero { color:var(--muted); }
+  td.parc { color:var(--muted); text-align:left; }
+  .neg { color:var(--neg); }
+  .pos { color:var(--pos); }
+  .vazio { padding:14px; color:var(--muted); font-size:14px; }
+
+  /* Gastos */
+  .gastos-topo { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:14px; }
+  .gastos-topo label { font-size:14px; color:var(--muted); }
+  input[type=month] { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; }
+  #banner .rotulo { font-size:13px; color:var(--muted); }
+  #banner .valor { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .grade { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
+  .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); }
+  .caixa h2 { margin:0; font-size:14px; padding:12px 14px; background:var(--head); color:var(--head-fg); font-weight:600; }
+
+  /* Dívidas */
+  .params { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
+  .param { border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:var(--card); min-width:260px; }
+  .param .l { font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .param .v { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+  button { font:inherit; padding:6px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primario { background:var(--head); color:var(--head-fg); border-color:var(--head); }
+  form#formDiv { display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:10px; margin-top:16px; align-items:end; }
+  form#formDiv label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:4px; }
+  form#formDiv input { font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  .botoes { display:flex; gap:8px; }
+  @media (max-width: 700px) { form#formDiv { grid-template-columns: 1fr; } }
+  td.acoes { text-align:right; white-space:nowrap; }
+  .rodape { margin-top:12px; font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="topo">
+  <h1>Gastos Nat e Vi</h1>
+  <div class="abas" id="abas">
+    <button data-aba="cartoes">Cartões</button>
+    <button data-aba="gastos">Gastos</button>
+    <button data-aba="mes-x-mes">Mês x Mês</button>
+    <button data-aba="dividas">Dívidas</button>
+  </div>
+</nav>
+
+<main>
+  <div id="fallback">
+    <label>Escolha o arquivo <strong>Controle_Mensal.xlsx</strong> (modo local): <input type="file" id="arquivo" accept=".xlsx"></label>
+  </div>
+  <div id="erro"></div>
+  <div id="meta" class="meta">Carregando…</div>
+
+  <!-- CARTÕES -->
+  <section class="visao" id="v-cartoes">
+    <div class="wrap"><table id="t-cartoes"></table></div>
+    <div class="rodape" id="r-cartoes"></div>
+  </section>
+
+  <!-- GASTOS -->
+  <section class="visao" id="v-gastos">
+    <div class="gastos-topo">
+      <label for="mes">Mês</label>
+      <input type="month" id="mes">
+    </div>
+    <div id="banner" style="display:none;">
+      <div class="rotulo" id="bRotulo"></div>
+      <div class="valor" id="bValor"></div>
+    </div>
+    <div class="grade">
+      <div class="caixa"><h2>Nat</h2><div id="g-nat"></div></div>
+      <div class="caixa"><h2>Vi</h2><div id="g-vi"></div></div>
+      <div class="caixa"><h2>Cartões Vi</h2><div id="g-cartoes"></div></div>
+    </div>
+  </section>
+
+  <!-- MÊS X MÊS -->
+  <section class="visao" id="v-mes-x-mes">
+    <div class="wrap"><table id="t-mxm"></table></div>
+    <div class="rodape">Saldo = Nat − Vi + cartões da Vi. Positivo: a Vi transfere para a Nat. Negativo: a Nat transfere para a Vi.</div>
+  </section>
+
+  <!-- DÍVIDAS -->
+  <section class="visao" id="v-dividas">
+    <div class="params">
+      <div class="param"><div class="l">Parâmetro: rendimento por dia útil a cada R$ 1</div><div class="v" id="p-taxa">-</div></div>
+      <div class="param"><div class="l">Parâmetro: data pro cálculo final de dias úteis</div><div class="v" id="p-data">-</div></div>
+    </div>
+    <div class="wrap"><table id="t-dividas"></table></div>
+    <form id="formDiv">
+      <label>Descrição <input id="dDesc" type="text" required></label>
+      <label>Data <input id="dData" type="date" required></label>
+      <label>Valor (pagamento negativo) <input id="dValor" type="number" step="0.01" required></label>
+      <div class="botoes">
+        <button type="submit" class="primario" id="dSalvar">Adicionar</button>
+        <button type="button" id="dCancelar" style="display:none;">Cancelar</button>
+      </div>
+    </form>
+    <div class="rodape" id="r-dividas"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+
+<script>
+/* =========================================================
+   CONFIGURAÇÃO
+   CLIENT_ID vazio = modo local (Dívidas somente leitura).
+   Com CLIENT_ID, lê e grava no Controle_Mensal.xlsx do OneDrive.
+   ========================================================= */
+const CONFIG = {
+  CLIENT_ID: "",
+  FILE_PATH: "Documentos/Controle_Mensal.xlsx",
+  ALIAS: { "Black": "Essential" },           // mesmo cartão com nome diferente entre anos
+  VI_LABELS: ["vitor", "vi"],                // rótulo do bloco da Vi (linha 4)
+  ABA_ACERTOS: "Acertos Nat x Vi",
+  ABA_DIVIDAS: "Dívidas Vi",
+  MES_INICIAL: "2026-12",                    // ponto de partida da aba Gastos (como a B3)
+  SCOPES: ["Files.ReadWrite"],
+};
+
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const MESES_LONGO = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const $ = (id) => document.getElementById(id);
+const ymKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+const EPOCA = Date.UTC(1899, 11, 30);
+const DIA = 86400000;
+
+/* ---------- Estado compartilhado ---------- */
+const estado = {
+  wb: null,                 // workbook com as abas de ano e Acertos (leitura)
+  cards: null,              // { byMonth, order }
+  acertos: null,            // { rows, monthKeys }
+  totais: null,             // Map mês -> { Nat, Vi }
+  div: null,                // { matriz, taxa, modelo }
+  escrita: false,           // grava no OneDrive?
+  editando: null,           // linha em edição na Dívidas
+  mesGastos: CONFIG.MES_INICIAL,
+  aba: "cartoes",
+  // OneDrive
+  msal: null, token: null, itemId: null,
+};
+
+/* ---------- Datas ---------- */
+function ymFromCell(v) {
+  if (typeof v === "number" && v > 20000 && v < 100000) {
+    const d = XLSX.SSF.parse_date_code(v);
+    return d ? { y: d.y, m: d.m } : null;
+  }
+  if (typeof v === "string") {
+    const mm = v.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (mm) return { y: Number(mm[3]), m: Number(mm[2]) };
+  }
+  return null;
+}
+const serialDeData = (s) => new Date(EPOCA + s * DIA);
+const dataDeSerial = (s) => {
+  const d = serialDeData(s);
+  return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+};
+const serialDeInput = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - EPOCA) / DIA);
+};
+const serialHoje = () => {
+  const h = new Date();
+  return Math.round((Date.UTC(h.getFullYear(), h.getMonth(), h.getDate()) - EPOCA) / DIA);
+};
+
+/* ---------- Leitura: cartões da Vi por ano ---------- */
+function lerCartoes(wb) {
+  const byMonth = new Map();
+  const order = [];
+  const anos = wb.SheetNames.filter(n => /^\d{4}$/.test(n)).sort();
+  for (const nome of anos) {
+    const ws = wb.Sheets[nome];
+    if (!ws || !ws["!ref"]) continue;
+    const rng = XLSX.utils.decode_range(ws["!ref"]);
+    const y = Number(nome);
+    const get = (r, c) => { const cell = ws[XLSX.utils.encode_cell({ r, c })]; return cell ? cell.v : undefined; };
+    let vit = -1;
+    for (let c = rng.s.c; c <= rng.e.c; c++) {
+      const v = get(3, c);
+      if (typeof v === "string" && CONFIG.VI_LABELS.includes(v.trim().toLowerCase())) { vit = c; break; }
+    }
+    if (vit < 0) continue;
+    const cards = [];
+    for (let c = vit; c <= rng.e.c; c++) {
+      const lab = get(4, c);
+      if (lab === undefined || lab === null || String(lab).trim() === "") {
+        if (c > vit && get(3, c) !== undefined && get(3, c) !== "") break;
+        continue;
+      }
+      const s = String(lab).trim();
+      if (/^(cart[aã]o|total)/i.test(s)) break;
+      cards.push({ c, name: CONFIG.ALIAS[s] || s });
+    }
+    for (const k of cards) if (!order.includes(k.name)) order.push(k.name);
+    for (let r = 5; r <= rng.e.r; r++) {
+      const raw = get(r, 2);
+      if (typeof raw !== "number" || raw < 20000 || raw > 100000) continue;
+      const d = XLSX.SSF.parse_date_code(raw);
+      if (!d || d.y !== y) continue;
+      const row = byMonth.get(ymKey(y, d.m)) || {};
+      for (const k of cards) {
+        const v = get(r, k.c);
+        row[k.name] = typeof v === "number" ? v : 0;
+      }
+      byMonth.set(ymKey(y, d.m), row);
+    }
+  }
+  return { byMonth, order };
+}
+
+/* ---------- Leitura: lançamentos e totais da aba Acertos ---------- */
+function lerAcertos(wb) {
+  const ws = wb.Sheets[CONFIG.ABA_ACERTOS];
+  if (!ws || !ws["!ref"]) throw new Error(`Aba "${CONFIG.ABA_ACERTOS}" não encontrada no arquivo.`);
+  const rng = XLSX.utils.decode_range(ws["!ref"]);
+  const get = (r, c) => { const cell = ws[XLSX.utils.encode_cell({ r, c })]; return cell ? cell.v : undefined; };
+  const monthCols = [];
+  for (let c = 0; c <= rng.e.c; c++) {
+    const ym = ymFromCell(get(0, c));
+    if (ym) monthCols.push({ c, key: ymKey(ym.y, ym.m) });
+  }
+  const rows = [];
+  const totais = new Map();
+  for (let r = 1; r <= rng.e.r; r++) {
+    const who = get(r, 1), compra = get(r, 2);
+    if (who === undefined) continue;
+    const pessoa = String(who).trim();
+    const months = new Map();
+    for (const mc of monthCols) {
+      const v = get(r, mc.c);
+      if (v === undefined || v === null || v === "" || v === "-") continue;
+      const num = typeof v === "number" ? v : (Number(v) || 0);
+      months.set(mc.key, num);
+      if (pessoa === "Nat" || pessoa === "Vi") {
+        const t = totais.get(mc.key) || { Nat: 0, Vi: 0 };
+        t[pessoa] += num;
+        totais.set(mc.key, t);
+      }
+    }
+    if (compra === undefined) continue;
+    rows.push({
+      who: pessoa,
+      compra: String(compra).trim(),
+      parcelas: get(r, 4),
+      primeira: ymFromCell(get(r, 5)),
+      months,
+    });
+  }
+  const monthKeys = [...new Set(monthCols.map(m => m.key))].sort();
+  return { acertos: { rows, monthKeys }, totais };
+}
+
+/* ---------- Visão Gastos (replica as fórmulas da aba Gastos) ---------- */
+function gastosDoMes(acertos, cards, key) {
+  const [sy, sm] = key.split("-").map(Number);
+  const itens = (who) => acertos.rows
+    .filter(r => r.who === who && r.months.has(key))
+    .map(r => {
+      let parcela = "";
+      if (r.parcelas === "recorrente") parcela = "recorrente";
+      else if (r.primeira) parcela = `${(sy - r.primeira.y) * 12 + (sm - r.primeira.m) + 1}/${r.parcelas}`;
+      return { compra: r.compra, parcela, valor: r.months.get(key) };
+    });
+  const nat = itens("Nat"), vi = itens("Vi");
+  const cardRow = cards.byMonth.get(key) || {};
+  const cartoes = cards.order.map(n => ({ cartao: n, valor: cardRow[n] || 0 }));
+  const totNat = nat.reduce((s, x) => s + x.valor, 0);
+  const totVi = vi.reduce((s, x) => s + x.valor, 0);
+  const totCartoes = cartoes.reduce((s, x) => s + x.valor, 0);
+  const diff = totNat - totVi + totCartoes;
+  return {
+    nat, vi, cartoes, totNat, totVi, totCartoes,
+    rotulo: diff < 0 ? "Nat transfere pro Vi:" : "Vi transfere pra Nat:",
+    valor: Math.abs(diff),
+  };
+}
+
+/* ---------- Visão Mês x Mês ---------- */
+function montarLinhas(totais, cards) {
+  const chaves = new Set([...totais.keys(), ...cards.byMonth.keys()]);
+  if (!chaves.size) return [];
+  const ordenadas = [...chaves].sort();
+  const [sy, sm] = ordenadas[0].split("-").map(Number);
+  const [ey, em] = ordenadas[ordenadas.length - 1].split("-").map(Number);
+  const linhas = [];
+  let y = sy, m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    const key = ymKey(y, m);
+    const t = totais.get(key) || { Nat: 0, Vi: 0 };
+    const c = cards.byMonth.get(key) || {};
+    const porCartao = cards.order.map(n => c[n] || 0);
+    const cartoesVi = porCartao.reduce((s, v) => s + v, 0);
+    linhas.push({ y, m, nat: t.Nat, vi: t.Vi, cartoesVi, porCartao, saldo: t.Nat - t.Vi + cartoesVi });
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return linhas;
+}
+
+/* ---------- Dívidas: cálculo (mesma regra da aba) ---------- */
+// matriz[i] = linha i+1, colunas A..G (índices 0..6)
+function diasUteis(a, b) {
+  if (b < a) return -diasUteis(b, a);
+  let n = 0;
+  for (let s = a; s <= b; s++) {
+    const dow = serialDeData(s).getUTCDay();
+    if (dow !== 0 && dow !== 6) n++;
+  }
+  return n;
+}
+
+function calcularDividas(matriz, taxa, hoje) {
+  const cel = (r, c) => {
+    const row = matriz[r - 1] || [];
+    const v = row[c];
+    return v === undefined || v === null || v === "" ? null : v;
+  };
+  let tot = null;
+  for (let r = 3; r <= matriz.length + 1; r++) {
+    if (cel(r, 2) === "Total") { tot = r; break; }
+  }
+  const fim = tot ? tot - 1 : matriz.length;
+  const linhas = [];
+  let acumulado = 0;
+  for (let r = 3; r <= fim; r++) {
+    const valor = typeof cel(r, 2) === "number" ? cel(r, 2) : 0;
+    acumulado += valor;
+    const descricao = cel(r, 0), data = cel(r, 1);
+    if (descricao === null && data === null && cel(r, 2) === null) continue;
+    const proxima = cel(r + 1, 1);
+    const ate = proxima === null ? hoje : proxima;
+    const dias = data === null ? null : diasUteis(data, ate);
+    const estimado = dias === null ? null : dias * taxa * acumulado;
+    linhas.push({
+      row: r, descricao: descricao === null ? "" : String(descricao),
+      data, valor: cel(r, 2) === null ? null : valor, saldo: acumulado, dias, estimado,
+    });
+  }
+  const estimadoTotal = linhas.reduce((s, l) => s + (l.estimado || 0), 0);
+  return { tot, linhas, saldoFinal: acumulado, estimadoTotal };
+}
+
+/* ---------- Render: Cartões ---------- */
+function renderCartoes() {
+  const { cards } = estado;
+  const meses = [...cards.byMonth.keys()].sort();
+  if (!meses.length) { $("t-cartoes").innerHTML = `<tr><td class="vazio">Nenhum mês encontrado.</td></tr>`; return; }
+  const [sy, sm] = meses[0].split("-").map(Number);
+  const [ey, em] = meses[meses.length - 1].split("-").map(Number);
+  let html = `<thead><tr><th>mês</th>${cards.order.map(n => `<th>${n}</th>`).join("")}</tr></thead><tbody>`;
+  let y = sy, m = sm, anoAtual = null;
+  while (y < ey || (y === ey && m <= em)) {
+    const key = ymKey(y, m);
+    if (y !== anoAtual) { html += `<tr class="ano"><td colspan="${cards.order.length + 1}">${y}</td></tr>`; anoAtual = y; }
+    const row = cards.byMonth.get(key) || {};
+    html += `<tr><td>${MESES[m - 1]}/${y}</td>` + cards.order.map(n => {
+      const v = row[n];
+      return v ? `<td>${BRL.format(v)}</td>` : `<td class="zero">-</td>`;
+    }).join("") + "</tr>";
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  $("t-cartoes").innerHTML = html + "</tbody>";
+  $("r-cartoes").textContent = "Valores lidos do bloco \"Vitor\" de cada aba de ano.";
+}
+
+/* ---------- Render: Gastos ---------- */
+function renderGastos() {
+  const key = $("mes").value || estado.mesGastos;
+  estado.mesGastos = key;
+  if (!key) return;
+  const g = gastosDoMes(estado.acertos, estado.cards, key);
+  $("banner").style.display = "block";
+  $("bRotulo").textContent = g.rotulo;
+  $("bValor").textContent = BRL.format(g.valor);
+  const colsLanc = [
+    { t: "Compra", f: l => l.compra },
+    { t: "Parcela", f: l => l.parcela, cls: "parc" },
+    { t: "Valor", f: l => BRL.format(l.valor) },
+  ];
+  const tabela = (linhas, colunas, total) => {
+    if (!linhas.length) return `<div class="vazio">Sem lançamentos neste mês.</div>`;
+    const head = `<tr>${colunas.map(c => `<th>${c.t}</th>`).join("")}</tr>`;
+    const body = linhas.map(l => `<tr>${colunas.map(c => `<td class="${c.cls || ""}">${c.f(l)}</td>`).join("")}</tr>`).join("");
+    const foot = `<tr class="total"><td colspan="${colunas.length - 1}">Total</td><td>${BRL.format(total)}</td></tr>`;
+    return `<table><thead>${head}</thead><tbody>${body}${foot}</tbody></table>`;
+  };
+  $("g-nat").innerHTML = tabela(g.nat, colsLanc, g.totNat);
+  $("g-vi").innerHTML = tabela(g.vi, colsLanc, g.totVi);
+  $("g-cartoes").innerHTML = tabela(g.cartoes, [
+    { t: "Cartão", f: c => c.cartao },
+    { t: "Valor", f: c => BRL.format(c.valor) },
+  ], g.totCartoes);
+}
+
+/* ---------- Render: Mês x Mês ---------- */
+function renderMesXMes() {
+  const linhas = montarLinhas(estado.totais, estado.cards);
+  const cardOrder = estado.cards.order;
+  const num = (v) => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`);
+  let html = `<thead><tr><th>mês</th><th>Nat</th><th>Vi</th><th>Cartões Vi</th>${cardOrder.map(n => `<th>${n}</th>`).join("")}<th>Saldo</th></tr></thead><tbody>`;
+  let anoAtual = null;
+  for (const l of linhas) {
+    if (l.y !== anoAtual) { html += `<tr class="ano"><td colspan="${5 + cardOrder.length}">${l.y}</td></tr>`; anoAtual = l.y; }
+    html += `<tr><td>${MESES[l.m - 1]}/${l.y}</td>` + num(l.nat) + num(l.vi) + num(l.cartoesVi)
+      + l.porCartao.map(v => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`)).join("")
+      + `<td class="${l.saldo < 0 ? "neg" : "pos"}"><strong>${BRL.format(l.saldo)}</strong></td></tr>`;
+  }
+  $("t-mxm").innerHTML = html + "</tbody>";
+}
+
+/* ---------- Render: Dívidas ---------- */
+function renderDividas() {
+  const { div, escrita } = estado;
+  const hoje = serialHoje();
+  $("p-taxa").textContent = div.taxa.toLocaleString("pt-BR", { maximumSignificantDigits: 12 });
+  $("p-data").textContent = dataDeSerial(hoje);
+  const colunas = ["Descrição", "Data", "Valor", "Saldo", "Dias úteis", "Estimado"];
+  let html = `<thead><tr>${colunas.map(c => `<th>${c}</th>`).join("")}${escrita ? "<th></th>" : ""}</tr></thead><tbody>`;
+  for (const l of div.modelo.linhas) {
+    const cls = (v) => (v < 0 ? ' class="neg"' : "");
+    html += `<tr>
+      <td>${l.descricao}</td>
+      <td>${l.data === null ? "" : dataDeSerial(l.data)}</td>
+      <td${cls(l.valor)}>${BRL.format(l.valor)}</td>
+      <td${cls(l.saldo)}>${BRL.format(l.saldo)}</td>
+      <td>${l.dias === null ? "" : l.dias}</td>
+      <td>${l.estimado === null ? "" : BRL.format(l.estimado)}</td>
+      ${escrita ? `<td class="acoes"><button data-editar="${l.row}">Editar</button> <button data-excluir="${l.row}">Excluir</button></td>` : ""}
+    </tr>`;
+  }
+  html += `<tr class="total"><td colspan="3">Total</td><td>${BRL.format(div.modelo.saldoFinal)}</td><td></td><td>${BRL.format(div.modelo.estimadoTotal)}</td>${escrita ? "<td></td>" : ""}</tr></tbody>`;
+  $("t-dividas").innerHTML = html;
+  $("formDiv").style.display = escrita ? "grid" : "none";
+  $("r-dividas").textContent = escrita
+    ? "Cada alteração é gravada direto na aba Dívidas Vi do arquivo no OneDrive. Estimado = dias úteis até a próxima movimentação (ou hoje) × taxa × saldo."
+    : "Modo leitura: para gravar, conecte o OneDrive (CLIENT_ID).";
+  document.querySelectorAll("[data-editar]").forEach(b => b.onclick = () => editarDivida(Number(b.dataset.editar)));
+  document.querySelectorAll("[data-excluir]").forEach(b => b.onclick = () => excluirDivida(Number(b.dataset.excluir)));
+}
+
+/* ---------- Dívidas: formulário e escrita ---------- */
+function limparFormDiv() {
+  estado.editando = null;
+  $("dDesc").value = ""; $("dData").value = ""; $("dValor").value = "";
+  $("dSalvar").textContent = "Adicionar";
+  $("dCancelar").style.display = "none";
+}
+
+function editarDivida(row) {
+  const l = estado.div.modelo.linhas.find(x => x.row === row);
+  if (!l) return;
+  estado.editando = row;
+  $("dDesc").value = l.descricao;
+  $("dData").value = l.data === null ? "" : serialDeData(l.data).toISOString().slice(0, 10);
+  $("dValor").value = l.valor;
+  $("dSalvar").textContent = "Salvar alteração";
+  $("dCancelar").style.display = "inline-block";
+  $("dDesc").focus();
+}
+
+async function excluirDivida(row) {
+  if (!confirm("Excluir este lançamento da planilha?")) return;
+  await executarEscrita(async (base) => {
+    await gfetch("POST", `${base}/range(address='A${row}:G${row}')/delete`, { shift: "Up" });
+    await reescreverTotal(base);
+  });
+}
+
+async function executarEscrita(acao) {
+  try {
+    $("meta").textContent = "Gravando…";
+    const base = baseWorkbook();
+    await acao(base);
+    await recarregarDividasOneDrive();
+    $("erro").textContent = "";
+    renderDividas();
+    $("meta").textContent = "Gravado no OneDrive.";
+  } catch (e) {
+    $("erro").textContent = e.message || String(e);
+    $("meta").textContent = "";
+  }
+}
+
+$("dCancelar").onclick = limparFormDiv;
+
+$("formDiv").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const desc = $("dDesc").value.trim();
+  const serial = serialDeInput($("dData").value);
+  const valor = Number($("dValor").value);
+  if (!desc || !$("dData").value || Number.isNaN(valor)) return;
+  if (estado.editando === null) {
+    await executarEscrita(async (base) => {
+      const modelo = estado.div.modelo;
+      await adicionarLinha(base, modelo, desc, serial, valor);
+    });
+  } else {
+    const row = estado.editando;
+    await executarEscrita(async (base) => {
+      await gfetch("PATCH", `${base}/range(address='A${row}:C${row}')`, { values: [[desc, serial, valor]] });
+    });
+  }
+  limparFormDiv();
+});
+
+/* ---------- Microsoft Graph (OneDrive) ---------- */
+async function obterToken() {
+  if (!estado.msal) {
+    estado.msal = new msal.PublicClientApplication({
+      auth: {
+        clientId: CONFIG.CLIENT_ID,
+        authority: "https://login.microsoftonline.com/consumers",
+        redirectUri: window.location.origin + window.location.pathname,
+      },
+      cache: { cacheLocation: "localStorage" },
+    });
+    await estado.msal.initialize();
+  }
+  try {
+    return (await estado.msal.acquireTokenSilent({ scopes: CONFIG.SCOPES, account: estado.msal.getAllAccounts()[0] })).accessToken;
+  } catch (e) {
+    return (await estado.msal.loginPopup({ scopes: CONFIG.SCOPES })).accessToken;
+  }
+}
+
+async function gfetch(metodo, url, corpo) {
+  const resp = await fetch(url, {
+    method: metodo,
+    headers: { Authorization: `Bearer ${estado.token}`, "Content-Type": "application/json" },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  if (!resp.ok) throw new Error(`Erro ao falar com o OneDrive (${resp.status}): ${await resp.text()}`);
+  return resp.status === 204 ? null : resp.json();
+}
+
+function baseWorkbook() {
+  return `https://graph.microsoft.com/v1.0/me/drive/items/${estado.itemId}/workbook/worksheets('${encodeURIComponent(CONFIG.ABA_DIVIDAS)}')`;
+}
+
+async function recarregarDividasOneDrive() {
+  const base = baseWorkbook();
+  const range = await gfetch("GET", `${base}/range(address='A1:G200')`);
+  const taxa = (await gfetch("GET", `${base}/range(address='K1')`)).values[0][0];
+  estado.div = { matriz: range.values, taxa, modelo: calcularDividas(range.values, taxa, serialHoje()) };
+}
+
+// Inclui uma linha: usa a primeira linha livre antes do Total, ou insere uma antes dele
+async function adicionarLinha(base, modelo, desc, serial, valor) {
+  const ultimaLinha = modelo.linhas.length ? modelo.linhas[modelo.linhas.length - 1].row : 2;
+  let r;
+  if (modelo.tot && ultimaLinha + 1 < modelo.tot) {
+    r = ultimaLinha + 1;
+  } else {
+    r = modelo.tot || ultimaLinha + 1;
+    if (modelo.tot) {
+      await gfetch("POST", `${base}/range(address='A${modelo.tot}:G${modelo.tot}')/insert`, { shift: "Down" });
+      await reescreverTotal(base);
+    }
+  }
+  await gfetch("PATCH", `${base}/range(address='A${r}:C${r}')`, { values: [[desc, serial, valor]] });
+  await gfetch("PATCH", `${base}/range(address='D${r}')`, { formulas: [[`=SUM($C$3:C${r})`]] });
+  await gfetch("PATCH", `${base}/range(address='F${r}')`, { formulas: [[`=IF(B${r}="","",NETWORKDAYS(B${r},IF(B${r + 1}="",$K$2,B${r + 1})))`]] });
+  await gfetch("PATCH", `${base}/range(address='G${r}')`, { formulas: [[`=IF(D${r}="","",(F${r}*$K$1)*D${r})`]] });
+}
+
+// Ajusta as fórmulas da linha de Total depois de inserir ou excluir linhas
+async function reescreverTotal(base) {
+  const range = await gfetch("GET", `${base}/range(address='A1:G200')`);
+  let tot = null;
+  for (let r = 3; r <= range.values.length + 1; r++) {
+    if ((range.values[r - 1] || [])[2] === "Total") { tot = r; break; }
+  }
+  if (!tot) return;
+  const ult = tot - 1;
+  await gfetch("PATCH", `${base}/range(address='G${tot}')`, { formulas: [[`=SUM(G3:G${ult})`]] });
+  await gfetch("PATCH", `${base}/range(address='D${tot}')`, { formulas: [[`=LOOKUP(2,1/(D3:D${ult}<>""),D3:D${ult})`]] });
+}
+
+/* ---------- Carregamento ---------- */
+function processar(wb) {
+  estado.wb = wb;
+  const cartoes = lerCartoes(wb);
+  const { acertos, totais } = lerAcertos(wb);
+  estado.cards = cartoes;
+  estado.acertos = acertos;
+  estado.totais = totais;
+  $("mes").value = estado.mesGastos;
+}
+
+async function carregarOneDrive() {
+  estado.token = await obterToken();
+  const item = await gfetch("GET", `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURI(CONFIG.FILE_PATH)}`);
+  estado.itemId = item.id;
+  const resp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${estado.itemId}/content`, {
+    headers: { Authorization: `Bearer ${estado.token}` },
+  });
+  if (!resp.ok) throw new Error(`Não consegui baixar o arquivo do OneDrive (${resp.status}).`);
+  processar(XLSX.read(await resp.arrayBuffer(), { type: "array" }));
+  await recarregarDividasOneDrive();
+  estado.escrita = true;
+}
+
+function carregarLocal(wb) {
+  processar(wb);
+  const ws = wb.Sheets[CONFIG.ABA_DIVIDAS];
+  if (!ws) throw new Error(`Aba "${CONFIG.ABA_DIVIDAS}" não encontrada no arquivo.`);
+  const matriz = XLSX.utils.sheet_to_json(ws, { header: 1, range: "A1:G200", defval: "", raw: true });
+  const taxa = ws["K1"] ? ws["K1"].v : 0;
+  estado.div = { matriz, taxa, modelo: calcularDividas(matriz, taxa, serialHoje()) };
+  estado.escrita = false;
+}
+
+/* ---------- Navegação ---------- */
+function atualizarVisao() {
+  const aba = estado.aba;
+  document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativa", b.dataset.aba === aba));
+  document.querySelectorAll("section.visao").forEach(s => s.classList.toggle("ativa", s.id === `v-${aba}`));
+  if (!estado.cards) return;   // ainda sem arquivo
+  if (aba === "cartoes") renderCartoes();
+  if (aba === "gastos") renderGastos();
+  if (aba === "mes-x-mes") renderMesXMes();
+  if (aba === "dividas") renderDividas();
+}
+
+function irPara(aba) {
+  estado.aba = aba;
+  try { history.replaceState(null, "", `#${aba}`); } catch (e) { /* ambiente que bloqueia a URL (ex.: visualizador) */ }
+  atualizarVisao();
+}
+
+document.querySelectorAll("#abas button").forEach(b => b.onclick = () => irPara(b.dataset.aba));
+$("mes").addEventListener("change", () => { estado.mesGastos = $("mes").value; renderGastos(); });
+
+/* ---------- Início ---------- */
+async function iniciar() {
+  const hash = location.hash.replace("#", "");
+  if (["cartoes", "gastos", "mes-x-mes", "dividas"].includes(hash)) estado.aba = hash;
+  $("mes").value = estado.mesGastos;
+  try {
+    if (CONFIG.CLIENT_ID) {
+      $("meta").textContent = "Carregando do OneDrive…";
+      await carregarOneDrive();
+      $("meta").textContent = "Conectado ao OneDrive.";
+      atualizarVisao();
+    } else {
+      $("fallback").style.display = "block";
+      $("meta").textContent = "Aguardando arquivo";
+      $("arquivo").addEventListener("change", async (ev) => {
+        const f = ev.target.files[0];
+        if (!f) return;
+        try {
+          carregarLocal(XLSX.read(await f.arrayBuffer(), { type: "array" }));
+          $("meta").textContent = "Modo leitura (arquivo local).";
+          $("erro").textContent = "";
+          atualizarVisao();
+        } catch (e) { $("erro").textContent = e.message || String(e); }
+      });
+    }
+    irPara(estado.aba);
+  } catch (e) {
+    $("erro").textContent = e.message || String(e);
+    $("meta").textContent = "";
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
