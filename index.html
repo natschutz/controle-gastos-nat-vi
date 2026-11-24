@@ -128,14 +128,14 @@
     <span id="meta" class="meta">Carregando…</span>
   </div>
   <div class="abas" id="abas">
-    <button data-aba="cartoes">Cartões</button>
     <button data-aba="gastos">Gastos</button>
+    <button data-aba="cartoes">Cartões</button>
     <button data-aba="mes-x-mes">Mês x Mês</button>
     <button data-aba="dividas">Dívidas</button>
   </div>
   <select id="selAba" class="seletor-aba" aria-label="Escolha a aba">
-    <option value="cartoes">Cartões</option>
     <option value="gastos">Gastos</option>
+    <option value="cartoes">Cartões</option>
     <option value="mes-x-mes">Mês x Mês</option>
     <option value="dividas">Dívidas</option>
   </select>
@@ -282,7 +282,7 @@ const estado = {
   escrita: false,           // grava no OneDrive?
   editando: null,           // linha em edição na Dívidas
   mesGastos: mesSeguinte(),
-  aba: "cartoes",
+  aba: "gastos",
   // OneDrive
   msal: null, token: null, itemId: null,
 };
@@ -914,8 +914,6 @@ document.querySelectorAll("[data-passo]").forEach(b => b.addEventListener("click
 
 /* ---------- Início ---------- */
 async function iniciar() {
-  const hash = location.hash.replace("#", "");
-  if (["cartoes", "gastos", "mes-x-mes", "dividas"].includes(hash)) estado.aba = hash;
   $("mes").value = estado.mesGastos;
   try {
     if (CONFIG.CLIENT_ID) {
