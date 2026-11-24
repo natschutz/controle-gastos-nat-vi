@@ -147,7 +147,7 @@
    ========================================================= */
 const CONFIG = {
   CLIENT_ID: "4aaf9183-a364-4fa5-95f3-06b40bbde3d6",
-  FILE_PATH: "Controle Mensal.xlsx",
+  FILE_PATH: "Documentos/Importante/Controle Mensal.xlsx",
   ALIAS: { "Black": "Essential" },           // mesmo cartão com nome diferente entre anos
   VI_LABELS: ["vitor", "vi"],                // rótulo do bloco da Vi (linha 4)
   ABA_ACERTOS: "Acertos Nat x Vi",
@@ -635,15 +635,7 @@ function processar(wb) {
 async function carregarOneDrive() {
   estado.token = await obterToken();
   if (!estado.token) return; // página foi para o login da Microsoft
-  // Procura o arquivo na raiz do OneDrive pelo nome (aceita espaço ou underline)
-  const lista = await gfetch("GET", "https://graph.microsoft.com/v1.0/me/drive/root/children?$select=id,name&$top=999");
-  const itens = lista.value || [];
-  const achado = itens.find(i => /^controle.*mensal.*\.xlsx$/i.test(i.name));
-  if (!achado) {
-    const nomes = itens.map(i => i.name).join(", ");
-    throw new Error("Não achei o arquivo Controle Mensal.xlsx na raiz do OneDrive. Arquivos na raiz: " + nomes);
-  }
-  const item = achado;
+  const item = await gfetch("GET", `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURI(CONFIG.FILE_PATH)}`);
   estado.itemId = item.id;
   const resp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${estado.itemId}/content`, {
     headers: { Authorization: `Bearer ${estado.token}` },
