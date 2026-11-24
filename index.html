@@ -65,18 +65,22 @@
     #g-nat table, #g-vi table { width:100%; table-layout:fixed; }
     #g-nat th:first-child, #g-nat td:first-child, #g-vi th:first-child, #g-vi td:first-child { width:46%; }
     #g-nat td, #g-vi td { white-space:normal; }
+    #caixa-cartoes-vi { display:inline-block; }
   }
   .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); display:inline-block; max-width:100%; vertical-align:top; }
   .titulo-caixa { margin:0 0 8px; padding:0 12px; font-size:15px; font-weight:600; }
   .titulo-param { margin:32px 0 8px; font-size:15px; font-weight:600; }
   .campo-mes { position:relative; display:inline-block; }
-  .campo-mes input[type=month] { padding-right:124px; text-align:left; }
+  .campo-mes input[type=month] { width:300px; padding-right:96px; text-align:left; white-space:nowrap; -webkit-appearance:none; appearance:none; }
   input[type=month]::-webkit-calendar-picker-indicator { display:none; }
   .setas-mes { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:2px; }
   .setas-mes button { border:none; background:transparent; padding:0 4px; font-size:18px; line-height:1; color:var(--fg); cursor:pointer; }
   .setas-mes button.icone-cal { padding:2px 4px; display:flex; align-items:center; }
   .grupo-mes { display:flex; align-items:center; gap:6px; }
   .rot { font-size:14px; color:var(--muted); width:52px; flex:0 0 52px; text-align:right; }
+  #v-mes-x-mes .gastos-topo { gap:12px 32px; }
+  #v-mes-x-mes .grupo-mes { gap:6px; }
+  #v-mes-x-mes .rot { width:auto; flex:0 0 auto; text-align:left; }
   .seletor-aba { display:none; font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); margin-left:auto; }
   .dividas-tabelas { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
   .dividas-tabelas > .wrap { flex:0 0 auto; }
@@ -161,7 +165,7 @@
     <div class="grade">
       <div><h2 class="titulo-caixa">Nat</h2><div class="caixa"><div id="g-nat"></div></div></div>
       <div><h2 class="titulo-caixa">Vi</h2><div class="caixa"><div id="g-vi"></div></div></div>
-      <div><h2 class="titulo-caixa">Cartões Vi</h2><div class="caixa"><div id="g-cartoes"></div></div></div>
+      <div><h2 class="titulo-caixa">Cartões Vi</h2><div class="caixa" id="caixa-cartoes-vi"><div id="g-cartoes"></div></div></div>
     </div>
   </section>
 
