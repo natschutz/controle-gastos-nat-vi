@@ -28,7 +28,7 @@
 
   .wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; background:var(--card); }
   table { border-collapse:collapse; width:100%; font-size:14px; font-variant-numeric:tabular-nums; }
-  th, td { padding:9px 12px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th, td { padding:9px 12px; text-align:center; vertical-align:middle; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { position:sticky; top:0; background:var(--head); color:var(--head-fg); font-weight:600; z-index:1; }
   th:first-child, td:first-child { text-align:left; position:sticky; left:0; background:var(--card); }
   th:first-child { background:var(--head); z-index:2; }
@@ -36,25 +36,28 @@
   tr.ano { cursor:pointer; }
   tr.ano .seta { display:inline-block; vertical-align:middle; margin-left:6px; transition:transform .2s; }
   tr.ano.aberto .seta { transform:rotate(180deg); }
-  tr.ano td { background:transparent !important; font-weight:600; color:var(--muted); text-transform:uppercase; font-size:12px; letter-spacing:.04em; padding-top:18px; }
+  #t-cartoes { table-layout:fixed; min-width:560px; }
+  #t-cartoes th:first-child, #t-cartoes td:first-child { width:110px; }
+  tr.ano td { background:transparent !important; font-weight:800; color:var(--fg); font-size:15px; padding-top:18px; }
   tr.total td { font-weight:600; border-top:2px solid var(--fg); border-bottom:none; }
   td.zero { color:var(--muted); }
   td.parc { color:var(--muted); }
-  .neg { color:var(--neg); }
+  .neg { color:var(--pos); }
   .pos { color:var(--pos); }
   .vazio { padding:14px; color:var(--muted); font-size:14px; }
 
   /* Gastos */
   .gastos-topo { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:14px; }
   .gastos-topo label { font-size:14px; color:var(--muted); }
-  input[type=month] { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
-  #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; width:fit-content; max-width:100%; }
+  input[type=month] { font:inherit; width:260px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; width:260px; max-width:100%; }
   #banner .rotulo { font-size:16px; color:var(--muted); }
   #banner .valor { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; }
   .grade { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; }
   @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
   .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); }
-  .caixa h2 { margin:0; font-size:15px; padding:14px 14px 8px; font-weight:600; }
+  .titulo-caixa { margin:0 0 8px; font-size:15px; font-weight:600; }
+  .titulo-param { margin:16px 0 8px; font-size:15px; font-weight:600; }
 
   /* Dívidas */
   .params { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
@@ -110,17 +113,16 @@
   <!-- GASTOS -->
   <section class="visao" id="v-gastos">
     <div class="gastos-topo">
-      <label for="mes">Mês</label>
-      <input type="month" id="mes">
+      <input type="month" id="mes" aria-label="Mês">
     </div>
     <div id="banner" style="display:none;">
       <div class="rotulo" id="bRotulo"></div>
       <div class="valor" id="bValor"></div>
     </div>
     <div class="grade">
-      <div class="caixa"><h2>Nat</h2><div id="g-nat"></div></div>
-      <div class="caixa"><h2>Vi</h2><div id="g-vi"></div></div>
-      <div class="caixa"><h2>Cartões Vi</h2><div id="g-cartoes"></div></div>
+      <div><h2 class="titulo-caixa">Nat</h2><div class="caixa"><div id="g-nat"></div></div></div>
+      <div><h2 class="titulo-caixa">Vi</h2><div class="caixa"><div id="g-vi"></div></div></div>
+      <div><h2 class="titulo-caixa">Cartões Vi</h2><div class="caixa"><div id="g-cartoes"></div></div></div>
     </div>
   </section>
 
@@ -131,16 +133,16 @@
       <label>Fim <input type="month" id="mxmFim"></label>
     </div>
     <div class="wrap"><table id="t-mxm"></table></div>
-    <div class="rodape">Saldo = Nat − Vi + cartões da Vi. Positivo: a Vi transfere para a Nat. Negativo: a Nat transfere para a Vi.</div>
   </section>
 
   <!-- DÍVIDAS -->
   <section class="visao" id="v-dividas">
-    <div class="params">
-      <div class="param"><div class="l">Parâmetro: rendimento por dia útil a cada R$ 1</div><div class="v" id="p-taxa">-</div></div>
-      <div class="param"><div class="l">Parâmetro: data pro cálculo final de dias úteis</div><div class="v" id="p-data">-</div></div>
-    </div>
     <div class="wrap"><table id="t-dividas"></table></div>
+    <h2 class="titulo-param">Parâmetros Rendimento Estimado</h2>
+    <div class="params">
+      <div class="param"><div class="l">Rendimento por dia útil a cada 1 real</div><div class="v" id="p-taxa">-</div></div>
+      <div class="param"><div class="l">Data para o cálculo final de dias úteis</div><div class="v" id="p-data">-</div></div>
+    </div>
     <form id="formDiv">
       <label>Descrição <input id="dDesc" type="text" required></label>
       <label>Data <input id="dData" type="date" required></label>
@@ -177,11 +179,18 @@ const CONFIG = {
 
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MESES_LONGO = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const BRL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const $ = (id) => document.getElementById(id);
 const ymKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
 const EPOCA = Date.UTC(1899, 11, 30);
 const DIA = 86400000;
+
+/* Data e hora no formato dd/mm/aaaa às hh:mm */
+function formatarQuando(iso) {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} às ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 /* Aba Gastos abre sempre no mês seguinte ao mês atual */
 function mesSeguinte() {
@@ -485,14 +494,14 @@ function renderMesXMes() {
   });
   if (!linhas.length) { $("t-mxm").innerHTML = `<tr><td class="vazio">Nenhum mês no período escolhido.</td></tr>`; return; }
   const cardOrder = estado.cards.order;
-  const celula = (v) => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`);
+  const celula = (v) => (v === 0 ? `<td class="zero">-</td>` : `<td${v < 0 ? ' class="neg"' : ""}>${BRL.format(v)}</td>`);
   const linha = (rotulo, f) => `<tr><td>${rotulo}</td>${linhas.map(l => celula(f(l))).join("")}</tr>`;
   let html = `<thead><tr><th>mês</th>${linhas.map(l => `<th>${MESES[l.m - 1]}/${String(l.y).slice(-2)}</th>`).join("")}</tr></thead><tbody>`;
   html += linha("Nat", l => l.nat);
   html += linha("Vi", l => l.vi);
   html += linha("Cartões Vi", l => l.cartoesVi);
   cardOrder.forEach((n, i) => { html += linha(n, l => l.porCartao[i]); });
-  html += `<tr class="total"><td>Saldo</td>${linhas.map(l => `<td class="${l.saldo < 0 ? "neg" : "pos"}">${BRL.format(l.saldo)}</td>`).join("")}</tr>`;
+  html += `<tr class="total"><td>Total</td>${linhas.map(l => `<td>${BRL.format(l.saldo)}</td>`).join("")}</tr>`;
   $("t-mxm").innerHTML = html + "</tbody>";
 }
 
@@ -502,7 +511,7 @@ function renderDividas() {
   const hoje = serialHoje();
   $("p-taxa").textContent = div.taxa.toLocaleString("pt-BR", { maximumSignificantDigits: 12 });
   $("p-data").textContent = dataDeSerial(hoje);
-  const colunas = ["Descrição", "Data", "Valor", "Saldo", "Dias úteis", "Estimado"];
+  const colunas = ["Descrição", "Data", "Valor", "Saldo", "Dias úteis", "Rendimento Estimado"];
   let html = `<thead><tr>${colunas.map(c => `<th>${c}</th>`).join("")}${escrita ? "<th></th>" : ""}</tr></thead><tbody>`;
   for (const l of div.modelo.linhas) {
     const cls = (v) => (v < 0 ? ' class="neg"' : "");
@@ -520,8 +529,8 @@ function renderDividas() {
   $("t-dividas").innerHTML = html;
   $("formDiv").style.display = escrita ? "grid" : "none";
   $("r-dividas").textContent = escrita
-    ? "Cada alteração é gravada direto na aba Dívidas Vi do arquivo no OneDrive. Estimado = dias úteis até a próxima movimentação (ou hoje) × taxa × saldo."
-    : "Modo leitura: para gravar, conecte o OneDrive (CLIENT_ID).";
+    ? "Cada alteração é gravada direto na aba Dívidas Vi do arquivo no OneDrive. Rendimento Estimado = dias úteis até a próxima movimentação (ou hoje) × taxa × saldo."
+    : "";
   document.querySelectorAll("[data-editar]").forEach(b => b.onclick = () => editarDivida(Number(b.dataset.editar)));
   document.querySelectorAll("[data-excluir]").forEach(b => b.onclick = () => excluirDivida(Number(b.dataset.excluir)));
 }
@@ -702,9 +711,9 @@ async function sincronizarOneDrive() {
   await recarregarDividasOneDrive();
   estado.escrita = true;
   atualizarVisao();
-  $("meta").textContent = "Conectado ao OneDrive.";
+  $("meta").textContent = `Dados atualizados em ${formatarQuando(new Date().toISOString())}.`;
   try {
-    $("meta").textContent = "Conectado ao OneDrive. " + (await publicarSnapshot(bytes));
+    await publicarSnapshot(bytes);
   } catch (e) {
     $("erro").textContent = "Dados atualizados, mas não consegui publicar a versão do Vi: " + (e.message || e);
   }
@@ -722,8 +731,8 @@ async function carregarSnapshot() {
   carregarLocal(XLSX.read(bytes, { type: "array" }));
   estado.escrita = false;
   atualizarVisao();
-  const quando = obj.publicadoEm ? new Date(obj.publicadoEm).toLocaleString("pt-BR") : "";
-  $("meta").textContent = `Dados atualizados em ${quando} (somente leitura).`;
+  const quando = obj.publicadoEm ? formatarQuando(obj.publicadoEm) : "";
+  $("meta").textContent = `Dados atualizados em ${quando}.`;
 }
 
 /* Cifra o arquivo e envia para o repositório do GitHub */
