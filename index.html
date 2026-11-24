@@ -43,6 +43,7 @@
   #t-cartoes th, #t-cartoes td { width:90px; }
   #t-cartoes th:first-child, #t-cartoes td:first-child { width:110px; }
   tr.ano td { background:transparent !important; font-weight:800; color:var(--fg); font-size:15px; padding-top:18px; }
+  tr.ano td:first-child { background:var(--card) !important; }
   tr.total td { font-weight:600; border-top:2px solid var(--fg); border-bottom:none; }
   td.zero { color:var(--muted); }
   td.parc { color:var(--muted); }
@@ -57,9 +58,9 @@
   #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; width:260px; max-width:100%; }
   #banner .rotulo { font-size:16px; color:var(--muted); }
   #banner .valor { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; }
-  .grade { display:grid; grid-template-columns: repeat(3, max-content); gap:12px; align-items:start; }
+  .grade { display:grid; grid-template-columns: repeat(3, max-content); gap:32px; align-items:start; }
   @media (max-width: 900px) {
-    .grade { grid-template-columns: 1fr; }
+    .grade { grid-template-columns: 1fr; gap:12px; }
     .grade .caixa { display:block; }
     #g-nat table, #g-vi table { width:100%; table-layout:fixed; }
     #g-nat th:first-child, #g-nat td:first-child, #g-vi th:first-child, #g-vi td:first-child { width:46%; }
@@ -69,16 +70,16 @@
   .titulo-caixa { margin:0 0 8px; padding:0 12px; font-size:15px; font-weight:600; }
   .titulo-param { margin:32px 0 8px; font-size:15px; font-weight:600; }
   .campo-mes { position:relative; display:inline-block; }
-  .campo-mes input[type=month] { padding-right:104px; }
+  .campo-mes input[type=month] { padding-right:124px; text-align:left; }
   input[type=month]::-webkit-calendar-picker-indicator { display:none; }
   .setas-mes { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:2px; }
   .setas-mes button { border:none; background:transparent; padding:0 4px; font-size:18px; line-height:1; color:var(--fg); cursor:pointer; }
   .setas-mes button.icone-cal { padding:2px 4px; display:flex; align-items:center; }
-  .grupo-mes { display:flex; align-items:center; gap:8px; }
-  .rot { font-size:14px; color:var(--muted); width:56px; flex:0 0 56px; }
+  .grupo-mes { display:flex; align-items:center; gap:6px; }
+  .rot { font-size:14px; color:var(--muted); width:52px; flex:0 0 52px; text-align:right; }
   .seletor-aba { display:none; font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); margin-left:auto; }
   .dividas-tabelas { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
-  .dividas-tabelas > .wrap { flex:0 1 auto; }
+  .dividas-tabelas > .wrap { flex:0 0 auto; }
 
   /* Dívidas */
   .params { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
@@ -596,7 +597,7 @@ function renderDividas() {
     a += `<tr><td>${l.descricao}</td><td>${l.data === null ? "" : dataDeSerial(l.data)}</td><td${cls(l.valor)}>${BRL.format(l.valor)}</td><td${cls(l.saldo)}>${BRL.format(l.saldo)}</td></tr>`;
     b += `<tr><td>${l.dias === null ? "" : l.dias}</td><td>${l.estimado === null ? "" : BRL.format(l.estimado)}</td>${escrita ? `<td class="acoes"><button data-editar="${l.row}">Editar</button> <button data-excluir="${l.row}">Excluir</button></td>` : ""}</tr>`;
   }
-  a += `<tr class="total"><td colspan="3">Total</td><td>${BRL.format(div.modelo.saldoFinal)}</td></tr>`;
+  a += `<tr class="total"><td>Total</td><td></td><td></td><td>${BRL.format(div.modelo.saldoFinal)}</td></tr>`;
   b += `<tr class="total"><td></td><td>${BRL.format(div.modelo.estimadoTotal)}</td>${escrita ? "<td></td>" : ""}</tr>`;
   $("t-dividas").innerHTML = cabA + a + "</tbody>";
   $("t-dividas-rend").innerHTML = cabB + b + "</tbody>";
