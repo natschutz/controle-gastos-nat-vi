@@ -28,14 +28,18 @@
 
   .wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; background:var(--card); }
   table { border-collapse:collapse; width:100%; font-size:14px; font-variant-numeric:tabular-nums; }
-  th, td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th, td { padding:9px 12px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { position:sticky; top:0; background:var(--head); color:var(--head-fg); font-weight:600; z-index:1; }
-  th:first-child, td:first-child { text-align:left; }
-  tbody tr:nth-child(even) td { background:var(--zebra); }
+  th:first-child, td:first-child { text-align:left; position:sticky; left:0; background:var(--card); }
+  th:first-child { background:var(--head); z-index:2; }
+  tr.linha-mes.fechado { display:none; }
+  tr.ano { cursor:pointer; }
+  tr.ano .seta { display:inline-block; vertical-align:middle; margin-left:6px; transition:transform .2s; }
+  tr.ano.aberto .seta { transform:rotate(180deg); }
   tr.ano td { background:transparent !important; font-weight:600; color:var(--muted); text-transform:uppercase; font-size:12px; letter-spacing:.04em; padding-top:18px; }
   tr.total td { font-weight:600; border-top:2px solid var(--fg); border-bottom:none; }
   td.zero { color:var(--muted); }
-  td.parc { color:var(--muted); text-align:left; }
+  td.parc { color:var(--muted); }
   .neg { color:var(--neg); }
   .pos { color:var(--pos); }
   .vazio { padding:14px; color:var(--muted); font-size:14px; }
@@ -44,13 +48,13 @@
   .gastos-topo { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:14px; }
   .gastos-topo label { font-size:14px; color:var(--muted); }
   input[type=month] { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
-  #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; }
-  #banner .rotulo { font-size:13px; color:var(--muted); }
+  #banner { padding:16px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:16px; width:fit-content; max-width:100%; }
+  #banner .rotulo { font-size:16px; color:var(--muted); }
   #banner .valor { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; }
   .grade { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; }
   @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
   .caixa { border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card); }
-  .caixa h2 { margin:0; font-size:14px; padding:12px 14px; background:var(--head); color:var(--head-fg); font-weight:600; }
+  .caixa h2 { margin:0; font-size:15px; padding:14px 14px 8px; font-weight:600; }
 
   /* Dívidas */
   .params { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
@@ -66,12 +70,23 @@
   @media (max-width: 700px) { form#formDiv { grid-template-columns: 1fr; } }
   td.acoes { text-align:right; white-space:nowrap; }
   .rodape { margin-top:12px; font-size:12px; color:var(--muted); }
+  .marca { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  @media (max-width: 700px) {
+    nav.topo { padding:10px 12px; }
+    main { padding:14px 12px 24px; }
+    th, td { padding:7px 8px; font-size:13px; }
+    .abas button { padding:6px 10px; font-size:13px; }
+    #banner .valor { font-size:20px; }
+  }
 </style>
 </head>
 <body>
 
 <nav class="topo">
-  <h1>Gastos Nat e Vi</h1>
+  <div class="marca">
+    <h1>Gastos Nat e Vi</h1>
+    <button id="btnAtualizar" style="display:none">Atualizar (Nat)</button>
+  </div>
   <div class="abas" id="abas">
     <button data-aba="cartoes">Cartões</button>
     <button data-aba="gastos">Gastos</button>
@@ -86,12 +101,10 @@
   </div>
   <div id="erro"></div>
   <div id="meta" class="meta">Carregando…</div>
-  <button id="btnAtualizar" style="display:none">Atualizar (Nat)</button>
 
   <!-- CARTÕES -->
   <section class="visao" id="v-cartoes">
     <div class="wrap"><table id="t-cartoes"></table></div>
-    <div class="rodape" id="r-cartoes"></div>
   </section>
 
   <!-- GASTOS -->
@@ -113,6 +126,10 @@
 
   <!-- MÊS X MÊS -->
   <section class="visao" id="v-mes-x-mes">
+    <div class="gastos-topo">
+      <label>Início <input type="month" id="mxmInicio"></label>
+      <label>Fim <input type="month" id="mxmFim"></label>
+    </div>
     <div class="wrap"><table id="t-mxm"></table></div>
     <div class="rodape">Saldo = Nat − Vi + cartões da Vi. Positivo: a Vi transfere para a Nat. Negativo: a Nat transfere para a Vi.</div>
   </section>
@@ -153,7 +170,6 @@ const CONFIG = {
   VI_LABELS: ["vitor", "vi"],                // rótulo do bloco da Vi (linha 4)
   ABA_ACERTOS: "Acertos Nat x Vi",
   ABA_DIVIDAS: "Dívidas Vi",
-  MES_INICIAL: "2026-12",                    // ponto de partida da aba Gastos (como a B3)
   SCOPES: ["Files.ReadWrite"],
   GH_REPO: "natschutz/controle-gastos-nat-vi",   // repositório onde fica a cópia cifrada
   SNAPSHOT_PATH: "data.json",                    // nome do arquivo cifrado no repositório
@@ -167,6 +183,14 @@ const ymKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
 const EPOCA = Date.UTC(1899, 11, 30);
 const DIA = 86400000;
 
+/* Aba Gastos abre sempre no mês seguinte ao mês atual */
+function mesSeguinte() {
+  const d = new Date();
+  const m = d.getMonth() + 2; // getMonth é 0-based
+  const y = d.getFullYear() + (m > 12 ? 1 : 0);
+  return ymKey(y, m > 12 ? m - 12 : m);
+}
+
 /* ---------- Estado compartilhado ---------- */
 const estado = {
   wb: null,                 // workbook com as abas de ano e Acertos (leitura)
@@ -176,7 +200,7 @@ const estado = {
   div: null,                // { matriz, taxa, modelo }
   escrita: false,           // grava no OneDrive?
   editando: null,           // linha em edição na Dívidas
-  mesGastos: CONFIG.MES_INICIAL,
+  mesGastos: mesSeguinte(),
   aba: "cartoes",
   // OneDrive
   msal: null, token: null, itemId: null,
@@ -391,20 +415,31 @@ function renderCartoes() {
   if (!meses.length) { $("t-cartoes").innerHTML = `<tr><td class="vazio">Nenhum mês encontrado.</td></tr>`; return; }
   const [sy, sm] = meses[0].split("-").map(Number);
   const [ey, em] = meses[meses.length - 1].split("-").map(Number);
+  const anoHoje = new Date().getFullYear();
+  const seta = `<svg class="seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
   let html = `<thead><tr><th>mês</th>${cards.order.map(n => `<th>${n}</th>`).join("")}</tr></thead><tbody>`;
   let y = sy, m = sm, anoAtual = null;
   while (y < ey || (y === ey && m <= em)) {
     const key = ymKey(y, m);
-    if (y !== anoAtual) { html += `<tr class="ano"><td colspan="${cards.order.length + 1}">${y}</td></tr>`; anoAtual = y; }
+    if (y !== anoAtual) {
+      html += `<tr class="ano${y === anoHoje ? " aberto" : ""}" data-ano="${y}"><td colspan="${cards.order.length + 1}">${y}${seta}</td></tr>`;
+      anoAtual = y;
+    }
     const row = cards.byMonth.get(key) || {};
-    html += `<tr><td>${MESES[m - 1]}/${y}</td>` + cards.order.map(n => {
+    html += `<tr class="linha-mes${y === anoHoje ? "" : " fechado"}" data-ano="${y}"><td>${MESES[m - 1]}/${String(y).slice(-2)}</td>` + cards.order.map(n => {
       const v = row[n];
       return v ? `<td>${BRL.format(v)}</td>` : `<td class="zero">-</td>`;
     }).join("") + "</tr>";
     m++; if (m > 12) { m = 1; y++; }
   }
-  $("t-cartoes").innerHTML = html + "</tbody>";
-  $("r-cartoes").textContent = "Valores lidos do bloco \"Vitor\" de cada aba de ano.";
+  const tabela = $("t-cartoes");
+  tabela.innerHTML = html + "</tbody>";
+  tabela.onclick = (ev) => {
+    const tr = ev.target.closest("tr.ano");
+    if (!tr) return;
+    tr.classList.toggle("aberto");
+    tabela.querySelectorAll(`tr.linha-mes[data-ano="${tr.dataset.ano}"]`).forEach(r => r.classList.toggle("fechado"));
+  };
 }
 
 /* ---------- Render: Gastos ---------- */
@@ -438,17 +473,26 @@ function renderGastos() {
 
 /* ---------- Render: Mês x Mês ---------- */
 function renderMesXMes() {
-  const linhas = montarLinhas(estado.totais, estado.cards);
-  const cardOrder = estado.cards.order;
-  const num = (v) => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`);
-  let html = `<thead><tr><th>mês</th><th>Nat</th><th>Vi</th><th>Cartões Vi</th>${cardOrder.map(n => `<th>${n}</th>`).join("")}<th>Saldo</th></tr></thead><tbody>`;
-  let anoAtual = null;
-  for (const l of linhas) {
-    if (l.y !== anoAtual) { html += `<tr class="ano"><td colspan="${5 + cardOrder.length}">${l.y}</td></tr>`; anoAtual = l.y; }
-    html += `<tr><td>${MESES[l.m - 1]}/${l.y}</td>` + num(l.nat) + num(l.vi) + num(l.cartoesVi)
-      + l.porCartao.map(v => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`)).join("")
-      + `<td class="${l.saldo < 0 ? "neg" : "pos"}"><strong>${BRL.format(l.saldo)}</strong></td></tr>`;
+  const mxmIni = $("mxmInicio"), mxmFim = $("mxmFim");
+  if (!mxmIni.value || !mxmFim.value) {
+    const ano = new Date().getFullYear();
+    mxmIni.value = mxmIni.value || `${ano}-01`;
+    mxmFim.value = mxmFim.value || `${ano}-12`;
   }
+  const linhas = montarLinhas(estado.totais, estado.cards).filter(l => {
+    const k = ymKey(l.y, l.m);
+    return k >= mxmIni.value && k <= mxmFim.value;
+  });
+  if (!linhas.length) { $("t-mxm").innerHTML = `<tr><td class="vazio">Nenhum mês no período escolhido.</td></tr>`; return; }
+  const cardOrder = estado.cards.order;
+  const celula = (v) => (v === 0 ? `<td class="zero">-</td>` : `<td>${BRL.format(v)}</td>`);
+  const linha = (rotulo, f) => `<tr><td>${rotulo}</td>${linhas.map(l => celula(f(l))).join("")}</tr>`;
+  let html = `<thead><tr><th>mês</th>${linhas.map(l => `<th>${MESES[l.m - 1]}/${String(l.y).slice(-2)}</th>`).join("")}</tr></thead><tbody>`;
+  html += linha("Nat", l => l.nat);
+  html += linha("Vi", l => l.vi);
+  html += linha("Cartões Vi", l => l.cartoesVi);
+  cardOrder.forEach((n, i) => { html += linha(n, l => l.porCartao[i]); });
+  html += `<tr class="total"><td>Saldo</td>${linhas.map(l => `<td class="${l.saldo < 0 ? "neg" : "pos"}">${BRL.format(l.saldo)}</td>`).join("")}</tr>`;
   $("t-mxm").innerHTML = html + "</tbody>";
 }
 
@@ -754,6 +798,8 @@ function irPara(aba) {
 
 document.querySelectorAll("#abas button").forEach(b => b.onclick = () => irPara(b.dataset.aba));
 $("mes").addEventListener("change", () => { estado.mesGastos = $("mes").value; renderGastos(); });
+$("mxmInicio").addEventListener("change", () => renderMesXMes());
+$("mxmFim").addEventListener("change", () => renderMesXMes());
 
 /* ---------- Início ---------- */
 async function iniciar() {
