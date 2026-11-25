@@ -808,10 +808,12 @@ async function carregarSnapshot() {
   const resp = await fetch(`./${CONFIG.SNAPSHOT_PATH}?t=${Date.now()}`, { cache: "no-store" });
   if (!resp.ok) throw new Error("Ainda não há dados publicados. Peça para a Nat atualizar.");
   const obj = await resp.json();
-  const senha = window.prompt("Senha de acesso:");
+  let senha = localStorage.getItem("senhaVi");
+  if (!senha) senha = window.prompt("Senha de acesso:");
   if (!senha) throw new Error("Digite a senha para ver os dados.");
   let bytes;
-  try { bytes = await decifrar(obj, senha); } catch (e) { throw new Error("Senha incorreta."); }
+  try { bytes = await decifrar(obj, senha); } catch (e) { localStorage.removeItem("senhaVi"); throw new Error("Senha incorreta."); }
+  localStorage.setItem("senhaVi", senha);
   carregarLocal(XLSX.read(bytes, { type: "array" }));
   estado.escrita = false;
   atualizarVisao();
@@ -821,8 +823,12 @@ async function carregarSnapshot() {
 
 /* Cifra o arquivo e envia para o repositório do GitHub */
 async function publicarSnapshot(bytes) {
-  const senha = window.prompt("Senha para a versão do Vi (a mesma que ele vai digitar):");
-  if (!senha) return "(versão do Vi não publicada: sem senha)";
+  let senha = localStorage.getItem("senhaVi");
+  if (!senha) {
+    senha = window.prompt("Senha para a versão do Vi (a mesma que ele vai digitar):");
+    if (!senha) return "(versão do Vi não publicada: sem senha)";
+    localStorage.setItem("senhaVi", senha);
+  }
   const token = localStorage.getItem("ghToken") || window.prompt("Cole o token do GitHub (só na primeira vez):");
   if (!token) return "(versão do Vi não publicada: sem token)";
   localStorage.setItem("ghToken", token);
@@ -899,7 +905,7 @@ $("mxmFim").addEventListener("change", () => renderMesXMes());
 /* Ícone de calendário: abre o seletor nativo do campo */
 document.querySelectorAll("[data-calendario]").forEach(b => b.addEventListener("click", () => {
   const c = $(b.dataset.calendario);
-  if (c.showPicker) c.showPicker(); else c.focus();
+  try { c.showPicker(); } catch (e) { c.focus(); c.click(); }
 }));
 
 /* Setinhas ‹ e › dos campos de mês: avançam ou voltam um mês */
